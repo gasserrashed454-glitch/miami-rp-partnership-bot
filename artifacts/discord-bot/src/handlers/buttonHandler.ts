@@ -1,75 +1,38 @@
-import {
-  type ButtonInteraction,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-} from 'discord.js';
+import { type ButtonInteraction } from 'discord.js';
 import { ALLOWED_GUILD_IDS } from '../config.js';
+import { createPartnershipTicket } from './ticketHandler.js';
+import { runPartnershipQuestions } from './questionFlow.js';
 
 export async function handlePartnershipApplyButton(
   interaction: ButtonInteraction,
 ): Promise<void> {
-  // Guild whitelist check
   if (!interaction.guildId || !ALLOWED_GUILD_IDS.includes(interaction.guildId)) {
-    await interaction.reply({
-      content: '❌ This bot is not authorised to operate in this server.',
-      ephemeral: true,
-    });
+    await interaction.reply({ content: '❌ This bot is not authorised to operate in this server.', ephemeral: true });
     return;
   }
 
-  const modal = new ModalBuilder()
-    .setCustomId('partnership_modal')
-    .setTitle('Partnership Application');
+  if (!interaction.guild || !interaction.member) {
+    await interaction.reply({ content: '❌ This can only be used in a server.', ephemeral: true });
+    return;
+  }
 
-  const serverNameInput = new TextInputBuilder()
-    .setCustomId('server_name')
-    .setLabel('Server Name')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('e.g. Miami Roleplay')
-    .setRequired(true)
-    .setMaxLength(100);
+  await interaction.deferReply({ ephemeral: true });
 
-  const inviteInput = new TextInputBuilder()
-    .setCustomId('invite_link')
-    .setLabel('Server Invite Link')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('e.g. https://discord.gg/example')
-    .setRequired(true)
-    .setMaxLength(100);
+  const guild  = interaction.guild;
+  const member = await guild.members.fetch(interaction.user.id);
 
-  const memberCountInput = new TextInputBuilder()
-    .setCustomId('member_count')
-    .setLabel('Member Count (Real members, no bots)')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('e.g. 150')
-    .setRequired(true)
-    .setMaxLength(20);
+  const { channel, alreadyExists } = await createPartnershipTicket(guild, member);
 
-  const descriptionInput = new TextInputBuilder()
-    .setCustomId('description')
-    .setLabel('Tell us about your server & community')
-    .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder('Describe your server, what you do, and why you want to partner with us.')
-    .setRequired(true)
-    .setMaxLength(500);
+  if (alreadyExists) {
+    await interaction.editReply({ content: `❌ You already have an open partnership ticket: ${channel}` });
+    return;
+  }
 
-  const proofUrlInput = new TextInputBuilder()
-    .setCustomId('proof_url')
-    .setLabel('Proof Image URL (optional — imgur, cdn, etc.)')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('https://i.imgur.com/...')
-    .setRequired(false)
-    .setMaxLength(300);
+  await interaction.editReply({ content: `✅ Your partnership ticket has been created: ${channel}` });
 
-  modal.addComponents(
-    new ActionRowBuilder<TextInputBuilder>().addComponents(serverNameInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(inviteInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(memberCountInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(proofUrlInput),
-  );
-
-  await interaction.showModal(modal);
+  // Start the step-by-step question flow inside the ticket channel
+  // Run without awaiting so the interaction reply returns immediately
+  runPartnershipQuestions(channel, member, guild).catch((err) => {
+    console.error('Question flow error:', err);
+  });
 }

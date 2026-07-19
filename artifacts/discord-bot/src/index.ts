@@ -24,6 +24,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent, // needed to read applicant replies in tickets
   ],
   partials: [Partials.Channel],
 });

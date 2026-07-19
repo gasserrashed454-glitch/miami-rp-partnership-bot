@@ -5,7 +5,7 @@ services:
     region: frankfurt
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/discord-bot run build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/discord-bot run build
     startCommand: node artifacts/discord-bot/dist/index.js
     envVars:
       - key: DISCORD_TOKEN

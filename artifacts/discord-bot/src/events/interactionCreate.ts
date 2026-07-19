@@ -8,7 +8,7 @@ import {
   ButtonStyle,
   Events,
 } from 'discord.js';
-import { ALLOWED_GUILD_IDS, MRP_AD } from '../config.js';
+import { ALLOWED_GUILD_IDS, MRP_AD, GUILD_CHANNELS } from '../config.js';
 import { handlePartnershipApplyButton } from '../handlers/buttonHandler.js';
 import { createPartnershipTicket, closeTicket } from '../handlers/ticketHandler.js';
 import {
@@ -114,10 +114,33 @@ async function handlePartnershipModal(
     components: [closeRow],
   });
 
-  // Proof embed
-  await ticketChannel.send({
-    embeds: [buildProofEmbed({ member, serverName, inviteLink, memberCount, proofUrl })],
-  });
+  const proofEmbed = buildProofEmbed({ member, serverName, inviteLink, memberCount, proofUrl });
+
+  // Proof embed inside the ticket
+  await ticketChannel.send({ embeds: [proofEmbed] });
+
+  // Post proof embed to the configured partner + proof channels for this guild
+  const guildChannels = GUILD_CHANNELS[guild.id];
+  if (guildChannels) {
+    const sendToChannel = async (channelId: string) => {
+      try {
+        const ch = await guild.channels.fetch(channelId) as TextChannel | null;
+        if (ch?.isTextBased()) {
+          await ch.send({
+            content: `📋 New partnership application from ${member} — ticket: ${ticketChannel}`,
+            embeds: [proofEmbed],
+          });
+        }
+      } catch {
+        // Channel not accessible — skip silently
+      }
+    };
+
+    await sendToChannel(guildChannels.partnerChannelId);
+    if (guildChannels.proofChannelId) {
+      await sendToChannel(guildChannels.proofChannelId);
+    }
+  }
 
   // AI analysis
   try {

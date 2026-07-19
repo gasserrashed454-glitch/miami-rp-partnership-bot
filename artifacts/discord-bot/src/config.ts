@@ -3,14 +3,25 @@ export const ALLOWED_GUILD_IDS = [
   '1528332540518203524',
 ];
 
+// Per-guild channel configuration
+// partnerChannelId: where the proof embed is posted when a ticket is opened
+// proofChannelId:   where the proof embed is also logged (null = not configured)
+export const GUILD_CHANNELS: Record<string, { partnerChannelId: string; proofChannelId: string | null }> = {
+  '1528332540518203524': {
+    partnerChannelId: '1528332650266361987',
+    proofChannelId:   '1528332597036322907',
+  },
+  '1474754371953627226': {
+    partnerChannelId: '1474754378069049440',
+    proofChannelId:   null,
+  },
+};
+
 export const PARTNERSHIP_THUMBNAIL_URL =
   'https://cdn.discordapp.com/attachments/1467571191223943389/1525043047350407218/Gemini_Generated_Image_crjux7crjux7crju-removebg-preview.png';
 
 export const PROOF_BOT_AVATAR_URL =
   'https://cdn.discordapp.com/attachments/1467807300579496048/1525438359713878066/Screenshot_20260711_120508-removebg-preview.png';
-
-export const SERVER_BANNER_URL =
-  'https://cdn.discordapp.com/attachments/1474754378433822858/1497752403401773096/Banner.mov';
 
 export const PARTNERSHIP_REQUIREMENTS_TEXT = `> • ** Your Server Must Provide 2 Representatives
 > •  A Member Of Your Ownership Must Join The Our Server

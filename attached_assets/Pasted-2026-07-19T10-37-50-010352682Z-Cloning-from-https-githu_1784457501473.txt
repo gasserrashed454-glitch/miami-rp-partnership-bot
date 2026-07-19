@@ -1,0 +1,33 @@
+2026-07-19T10:37:50.010352682Z ==> Cloning from https://github.com/gasserrashed454-glitch/miami-rp-partnership-bot
+2026-07-19T10:37:50.612302939Z ==> Checking out commit 9543e6964329fe62427a6a73c438e80e04747240 in branch main
+2026-07-19T10:37:52.093225823Z ==> Using Node.js version 24.14.1 (default)
+2026-07-19T10:37:52.093239233Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-07-19T10:37:52.139810809Z ==> Running build command 'pnpm install --frozen-lockfile && pnpm --filter @workspace/discord-bot run build'...
+2026-07-19T10:38:00.38876226Z 
+2026-07-19T10:38:00.388790791Z > @workspace/discord-bot@0.0.0 build /opt/render/project/src/artifacts/discord-bot
+2026-07-19T10:38:00.388798491Z > node build.mjs
+2026-07-19T10:38:00.388802561Z 
+2026-07-19T10:38:00.420410527Z node:internal/modules/package_json_reader:301
+2026-07-19T10:38:00.420436417Z   throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+2026-07-19T10:38:00.420441497Z         ^
+2026-07-19T10:38:00.420445568Z 
+2026-07-19T10:38:00.420451128Z Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'esbuild' imported from /opt/render/project/src/artifacts/discord-bot/build.mjs
+2026-07-19T10:38:00.420455898Z     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+2026-07-19T10:38:00.420460328Z     at packageResolve (node:internal/modules/esm/resolve:768:81)
+2026-07-19T10:38:00.420464128Z     at moduleResolve (node:internal/modules/esm/resolve:859:18)
+2026-07-19T10:38:00.420467958Z     at defaultResolve (node:internal/modules/esm/resolve:991:11)
+2026-07-19T10:38:00.420471738Z     at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+2026-07-19T10:38:00.420475659Z     at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+2026-07-19T10:38:00.420479549Z     at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+2026-07-19T10:38:00.420483319Z     at #resolve (node:internal/modules/esm/loader:701:17)
+2026-07-19T10:38:00.420488629Z     at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+2026-07-19T10:38:00.420494839Z     at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+2026-07-19T10:38:00.42050237Z   code: 'ERR_MODULE_NOT_FOUND'
+2026-07-19T10:38:00.42050839Z }
+2026-07-19T10:38:00.42051363Z 
+2026-07-19T10:38:00.42051887Z Node.js v24.14.1
+2026-07-19T10:38:00.435741759Z /opt/render/project/src/artifacts/discord-bot:
+2026-07-19T10:38:00.435755689Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/discord-bot@0.0.0 build: `node build.mjs`
+2026-07-19T10:38:00.43576323Z Exit status 1
+2026-07-19T10:38:00.491640825Z ==> Build failed 😞
+2026-07-19T10:38:00.491659995Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

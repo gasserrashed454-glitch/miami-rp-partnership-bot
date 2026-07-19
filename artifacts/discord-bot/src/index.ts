@@ -1,5 +1,12 @@
 import 'dotenv/config';
+import { createServer } from 'http';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
+
+// Render web-service health check — opens a port so the port scan passes
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT, () => {
+  console.log(`🌐 Health server listening on port ${PORT}`);
+});
 import { name as readyName, once as readyOnce, execute as readyExecute } from './events/ready.js';
 import { name as interactionName, execute as interactionExecute } from './events/interactionCreate.js';
 

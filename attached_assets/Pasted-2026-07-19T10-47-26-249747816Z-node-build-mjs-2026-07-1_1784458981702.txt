@@ -1,0 +1,50 @@
+2026-07-19T10:47:26.249747816Z > node build.mjs
+2026-07-19T10:47:26.249753656Z 
+2026-07-19T10:47:27.251980486Z ✅ Discord bot built to dist/index.js
+2026-07-19T10:47:28.459257296Z ==> Uploading build...
+2026-07-19T10:47:35.503979919Z ==> Uploaded in 3.1s. Compression took 3.9s
+2026-07-19T10:47:35.519019151Z ==> Build successful 🎉
+2026-07-19T10:47:41.021992128Z ==> Deploying...
+2026-07-19T10:47:41.214003967Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-07-19T10:48:06.322180063Z ❌ Failed to register commands in guild 1474754371953627226: DiscordAPIError[50001]: Missing Access
+2026-07-19T10:48:06.322213444Z     at handleErrors (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29136:17)
+2026-07-19T10:48:06.322218264Z     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+2026-07-19T10:48:06.322220924Z     at async SequentialHandler.runRequest (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29539:27)
+2026-07-19T10:48:06.322224124Z     at async SequentialHandler.queueRequest (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29370:18)
+2026-07-19T10:48:06.322226684Z     at async _REST.request (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29706:26)
+2026-07-19T10:48:06.322229225Z     at async execute (/opt/render/project/src/artifacts/discord-bot/dist/index.js:129086:7) {
+2026-07-19T10:48:06.322233714Z   rawError: { message: 'Missing Access', code: 50001 },
+2026-07-19T10:48:06.322236305Z   code: 50001,
+2026-07-19T10:48:06.322238815Z   status: 403,
+2026-07-19T10:48:06.322241375Z   method: 'PUT',
+2026-07-19T10:48:06.322243905Z   url: 'https://discord.com/api/v10/applications/1528042960543940791/guilds/1474754371953627226/commands',
+2026-07-19T10:48:06.322247935Z   requestBody: { files: undefined, json: [ [Object], [Object] ] }
+2026-07-19T10:48:06.322250465Z }
+2026-07-19T10:48:06.550090573Z ❌ Failed to register commands in guild 1528332540518203524: DiscordAPIError[50001]: Missing Access
+2026-07-19T10:48:06.550120893Z     at handleErrors (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29136:17)
+2026-07-19T10:48:06.550124113Z     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+2026-07-19T10:48:06.550126983Z     at async SequentialHandler.runRequest (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29539:27)
+2026-07-19T10:48:06.550129823Z     at async SequentialHandler.queueRequest (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29370:18)
+2026-07-19T10:48:06.550132263Z     at async _REST.request (/opt/render/project/src/artifacts/discord-bot/dist/index.js:29706:26)
+2026-07-19T10:48:06.550134663Z     at async execute (/opt/render/project/src/artifacts/discord-bot/dist/index.js:129086:7) {
+2026-07-19T10:48:06.550137543Z   rawError: { message: 'Missing Access', code: 50001 },
+2026-07-19T10:48:06.550139884Z   code: 50001,
+2026-07-19T10:48:06.550142294Z   status: 403,
+2026-07-19T10:48:06.550144544Z   method: 'PUT',
+2026-07-19T10:48:06.550146964Z   url: 'https://discord.com/api/v10/applications/1528042960543940791/guilds/1528332540518203524/commands',
+2026-07-19T10:48:06.550149834Z   requestBody: { files: undefined, json: [ [Object], [Object] ] }
+2026-07-19T10:48:06.550152124Z }
+2026-07-19T10:48:44.434055011Z ==> No open ports detected, continuing to scan...
+2026-07-19T10:48:44.76547832Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T10:49:47.233683259Z ==> No open ports detected, continuing to scan...
+2026-07-19T10:49:47.618821856Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T10:50:52.551479667Z ==> No open ports detected, continuing to scan...
+2026-07-19T10:50:52.883393354Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T10:51:55.422986927Z ==> No open ports detected, continuing to scan...
+2026-07-19T10:51:55.768607036Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T10:52:58.25307377Z ==> No open ports detected, continuing to scan...
+2026-07-19T10:52:58.585275787Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T10:52:58.927410475Z ==> Port scan timeout reached, no open ports detected. Bind your service to at least one port. If you don't need to receive traffic on any port, create a background worker instead.
+2026-07-19T10:52:59.2832093Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-07-19T11:02:41.735650373Z ==> Timed Out
+2026-07-19T11:02:41.738627537Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

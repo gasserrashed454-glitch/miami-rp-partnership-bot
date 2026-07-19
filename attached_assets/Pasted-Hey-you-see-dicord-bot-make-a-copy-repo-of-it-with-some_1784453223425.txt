@@ -1,0 +1,160 @@
+Hey you see dicord-bot make a copy repo of it with some changes:
+1: The new one uses a new bot token
+2: New part embed:
+{
+  "content": "",
+  "tts": false,
+  "embeds": [
+    {
+      "id": 445718182,
+      "description": "> • ** Your Server Must Provide 2 Representatives\n> •  A Member Of Your Ownership Must Join The Our Server\n> •  You Must Have A Positive And Active Community\n> •  You Must Post Our Ad In Your Server \n> •  Your Server Must Have 50+ Real members (Not Including Bots)**\n",
+      "fields": [],
+      "thumbnail": {
+        "url": "https://cdn.discordapp.com/attachments/1467571191223943389/1525043047350407218/Gemini_Generated_Image_crjux7crjux7crju-removebg-preview.png?ex=6a5dd004&is=6a5c7e84&hm=06a0d5b28f0487d2f4437fd66c170459ced4ef823cdc5c129bd621598fd30701"
+      },
+      "title": "𝗣𝗔𝗥𝗧𝗡𝗘𝗥𝗦𝗛𝗜𝗣 𝗥𝗘𝗤𝗨𝗜𝗥𝗘𝗠𝗘𝗡𝗧𝗦:"
+    }
+  ],
+  "components": [
+    {
+      "id": 228792987,
+      "type": 1,
+      "components": [
+        {
+          "id": 13862518,
+          "type": 2,
+          "style": 2,
+          "label": "𝗖𝗟𝗜𝗖𝗞 - 𝗣𝗔𝗥𝗧𝗡𝗘𝗥𝗦𝗛𝗜𝗣",
+          "action_set_id": "856512881",
+          "emoji": {
+            "name": "🎗️",
+            "animated": false
+          }
+        }
+      ]
+    }
+  ],
+  "actions": {},
+  "flags": 0,
+  "username": "𝗣𝗔𝗥𝗧𝗡𝗘𝗥𝗦𝗛𝗜𝗣",
+  "avatar_url": "https://cdn.discordapp.com/attachments/1467558994519261480/1528324615783579729/v6df8-removebg-preview.png?ex=6a5de2b7&is=6a5c9137&hm=7c613a7200fe2dd8a7c6a800b3a84650163b8c778e950bf4d718b40727488f2f"
+}
+
+3: New requirements for AI to check:
+***Here Is Miami Roleplay™ Partnership Requirements:***
+
+> •  Your Server Must Provide 2 Representatives
+> •  A Member Of Your Ownership Must Join The Our Server
+> •  You Must Have A Positive And Active Community
+> •  You Must Post Our Ad In Your Server 
+> •  Your Server Must Have 50+ Real members (Not Including Bots)
+
+***Note To Members:***
+
+*Not following these requirements will mean that we will not partner with your server. If a representative leaves the server after the partnership it will be terminated. Will may also work around our requirements if there's a good enough reason.* 
+
+**Last Updated : <t:1775474980:d>**
+And also the default checks too
+
+
+
+
+
+
+
+
+New AD:
+
+# 🌴 MRP — MIAMI ROLEPLAY 🌴
+
+Welcome to Miami… where the sirens are loud, the cars are fast and the scenes get crazy 👀🔥 
+
+If you play Emergency Hamburg this is where the real fun starts.
+
+⸻
+
+#   🚨 What You Can Do
+
+👮 Be a cop and chase down suspects
+🚒 Fight huge fires with your team
+🏥 Save lives as Medics
+🚧 Clear crazy crash scenes
+🏎️ Be a civilian and start your own story
+
+Cop? Criminal? Business owner? Street racer?
+You decide your own path.
+
+⸻
+
+# 🔥 Why Join MRP?
+
+• Active and fun community
+• Chill but organized staff
+• Big scenes
+• Fun events
+• No boring RP rules 24/7
+
+We keep it realistic enough to be fun. But not so strict that it feels like a job 💀
+
+⸻
+
+# 🎉 Events We Do
+
+• Car meets
+• Drag races
+• Border
+• President
+• Realistic
+
+⸻
+
+New to RP?
+We’ll help you out. No experience needed.
+
+Miami is waiting 🌊🌴
+Are you joining the good side… or causing the problems?
+
+***Founder: <@1476753599018172506>*** 
+╾╼╾╼╾╼╾╼╾╼╾╼╾╼╾╼╾╼
+-# https://discord.gg/mrpeh
+
+https://cdn.discordapp.com/attachments/1474754378433822858/1497752403401773096/Banner.mov?ex=69eeaa1f&is=69ed589f&hm=13818662eea224566d1187437d80437a72d97769143a9970e33c481428c6a8e1&
+Hey also we will change it from dm to in ticket.
+
+New proof massage format:
+{
+  "content": "",
+  "tts": false,
+  "embeds": [
+    {
+      "id": 395424572,
+      "description": "𝗨𝘀𝗲𝗿:\n𝗦𝗲𝗿𝘃𝗲𝗿: Server name | Invite\n𝗠𝗲𝗺𝗯𝗲𝗿 𝗖𝗼𝘂𝗻𝘁:\n𝗣𝗿𝗼𝗼𝗳: ",
+      "fields": [],
+      "color": 16777215,
+      "title": "𝗣𝗮𝗿𝘁𝗻𝗲𝗿𝘀𝗵𝗶𝗽 𝗣𝗿𝗼𝗼𝗳",
+      "image": {
+        "url": "Image of the srv"
+      },
+      "thumbnail": {
+        "url": "User Profile who did the partnership"
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": 228792987,
+      "type": 1,
+      "components": []
+    }
+  ],
+  "actions": {},
+  "flags": 0,
+  "username": "Zonix",
+  "avatar_url": "https://cdn.discordapp.com/attachments/1467807300579496048/1525438359713878066/Screenshot_20260711_120508-removebg-preview.png?ex=6a5362ae&is=6a52112e&hm=29975117bf9b76b5f85e5c0d9abffe620ec6e7315b0669b015047c6bbd506108"
+}
+
+
+5: remove the if someone dm the bot it dms the owner
+6: New 5 AI mistrial token
+
+Also make the bot doesn't require admin access at all

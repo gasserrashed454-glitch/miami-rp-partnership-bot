@@ -1,5 +1,4 @@
-import https from 'https';
-import crypto from 'crypto';
+import { createHash } from 'node:crypto';
 import {
   TextChannel,
   GuildMember,
@@ -13,29 +12,24 @@ import { buildTicketWelcomeEmbed } from '../utils/embeds.js';
 import { GUILD_CHANNELS, MRP_AD } from '../config.js';
 import { validateAd, scanProofImage } from '../utils/mistral.js';
 
-const COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
-const TIMEOUT_MS  = 10 * 60 * 1000;      // 10 min inactivity
+const USER_COOLDOWN_MS   = 15 * 60 * 1000;       // 15 minutes per user
+const SERVER_COOLDOWN_MS = 60 * 60 * 1000;        // 1 hour per partner server
+const TIMEOUT_MS         = 10 * 60 * 1000;        // 10 min inactivity in ticket
 
-// In-memory — resets on bot restart
-const cooldowns  = new Map<string, number>(); // guildId → expiry timestamp
-const usedHashes = new Set<string>();         // SHA-256 of used proof images
+// In-memory stores — reset on bot restart
+const userCooldowns   = new Map<string, number>(); // userId → expiry
+const serverCooldowns = new Map<string, number>(); // partnerGuildId → expiry
+const usedHashes      = new Set<string>();         // SHA-256 of used proof images
 
 function extractInviteCode(text: string): string | null {
   const m = text.match(/discord(?:\.gg|app\.com\/invite)\/([A-Za-z0-9-]+)/i);
   return m ? m[1] : null;
 }
 
-function downloadImageHash(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () =>
-        resolve(crypto.createHash('sha256').update(Buffer.concat(chunks)).digest('hex')),
-      );
-      res.on('error', reject);
-    }).on('error', reject);
-  });
+async function downloadImageHash(url: string): Promise<string> {
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  return createHash('sha256').update(Buffer.from(buf)).digest('hex');
 }
 
 async function next(channel: TextChannel, memberId: string): Promise<Message> {
@@ -58,6 +52,17 @@ export async function runPartnershipFlow(
   member: GuildMember,
   guild: Guild,
 ): Promise<void> {
+  // ── User cooldown check ───────────────────────────────────────────────────────
+  const userExpiry = userCooldowns.get(member.id);
+  if (userExpiry && Date.now() < userExpiry) {
+    const mins = Math.ceil((userExpiry - Date.now()) / 60_000);
+    await channel.send(
+      `${member} You applied recently — please wait **${mins} more minute(s)** before opening a new ticket.`,
+    );
+    await closeIn(channel, 'User cooldown');
+    return;
+  }
+
   // ── Welcome ──────────────────────────────────────────────────────────────────
   const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
@@ -145,15 +150,15 @@ export async function runPartnershipFlow(
       continue;
     }
 
-    // Cooldown check
+    // Server cooldown check (1 hour)
     if (partnerGuildId) {
-      const expires = cooldowns.get(partnerGuildId);
+      const expires = serverCooldowns.get(partnerGuildId);
       if (expires && Date.now() < expires) {
         const h = Math.ceil((expires - Date.now()) / 3_600_000);
         await channel.send(
           `Declined. This server is on a partnership cooldown — try again in **${h} hour(s)**.`,
         );
-        await closeIn(channel, 'Cooldown');
+        await closeIn(channel, 'Server cooldown');
         return;
       }
     }
@@ -228,8 +233,9 @@ export async function runPartnershipFlow(
       // AI error → allow through, staff will review
     } catch { /* allow on error */ }
 
-    // All good — record cooldown and hash
-    if (partnerGuildId) cooldowns.set(partnerGuildId, Date.now() + COOLDOWN_MS);
+    // All good — record cooldowns and hash
+    userCooldowns.set(member.id, Date.now() + USER_COOLDOWN_MS);
+    if (partnerGuildId) serverCooldowns.set(partnerGuildId, Date.now() + SERVER_COOLDOWN_MS);
     if (hash) usedHashes.add(hash);
 
     await channel.send(

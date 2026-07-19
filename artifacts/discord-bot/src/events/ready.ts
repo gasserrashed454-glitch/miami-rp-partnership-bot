@@ -5,33 +5,48 @@ export const name = Events.ClientReady;
 export const once = true;
 
 export async function execute(client: Client<true>): Promise<void> {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag}`);
 
   const commands = [
     new SlashCommandBuilder()
       .setName('postpartnership')
-      .setDescription('Post the partnership requirements embed in this channel')
-      .setDefaultMemberPermissions('0') // Staff/manage server only
+      .setDescription('Post the partnership embed')
+      .setDefaultMemberPermissions('0')
       .toJSON(),
 
     new SlashCommandBuilder()
       .setName('postad')
-      .setDescription('Post the MRP server advertisement')
+      .setDescription('Post the MRP ad')
       .setDefaultMemberPermissions('0')
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName('admin')
+      .setDescription('Bypass cooldowns for a user')
+      .setDefaultMemberPermissions('0')
+      .addSubcommand((sub) =>
+        sub
+          .setName('bypass')
+          .setDescription('Let a user skip cooldowns on their next application')
+          .addUserOption((o) => o.setName('user').setDescription('User').setRequired(true)),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('remove')
+          .setDescription('Remove bypass from a user')
+          .addUserOption((o) => o.setName('user').setDescription('User').setRequired(true)),
+      )
       .toJSON(),
   ];
 
   const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 
-  // Register commands only for the two allowed guilds
   for (const guildId of ALLOWED_GUILD_IDS) {
     try {
-      await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), {
-        body: commands,
-      });
-      console.log(`✅ Registered slash commands in guild ${guildId}`);
+      await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
+      console.log(`Commands registered in ${guildId}`);
     } catch (err) {
-      console.error(`❌ Failed to register commands in guild ${guildId}:`, err);
+      console.error(`Failed to register commands in ${guildId}:`, err);
     }
   }
 }

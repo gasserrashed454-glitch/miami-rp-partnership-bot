@@ -12,14 +12,15 @@ import { buildTicketWelcomeEmbed } from '../utils/embeds.js';
 import { GUILD_CHANNELS, MRP_AD } from '../config.js';
 import { validateAd, scanProofImage } from '../utils/mistral.js';
 
-const USER_COOLDOWN_MS   = 15 * 60 * 1000;       // 15 minutes per user
-const SERVER_COOLDOWN_MS = 60 * 60 * 1000;        // 1 hour per partner server
-const TIMEOUT_MS         = 10 * 60 * 1000;        // 10 min inactivity in ticket
+const USER_COOLDOWN_MS   = 15 * 60 * 1000;
+const SERVER_COOLDOWN_MS = 60 * 60 * 1000;
+const TIMEOUT_MS         = 10 * 60 * 1000;
 
-// In-memory stores — reset on bot restart
-const userCooldowns   = new Map<string, number>(); // userId → expiry
-const serverCooldowns = new Map<string, number>(); // partnerGuildId → expiry
-const usedHashes      = new Set<string>();         // SHA-256 of used proof images
+export const activeChannels = new Set<string>();
+export const adminBypass    = new Set<string>(); // userIds that skip cooldowns
+const userCooldowns         = new Map<string, number>();
+const serverCooldowns       = new Map<string, number>();
+const usedHashes            = new Set<string>();
 
 function extractInviteCode(text: string): string | null {
   const m = text.match(/discord(?:\.gg|app\.com\/invite)\/([A-Za-z0-9-]+)/i);
@@ -42,34 +43,43 @@ async function next(channel: TextChannel, memberId: string): Promise<Message> {
   return collected.first()!;
 }
 
-async function closeIn(channel: TextChannel, reason: string, delay = 5000): Promise<void> {
-  await new Promise((r) => setTimeout(r, delay));
-  await channel.delete(reason).catch(() => {});
-}
-
 export async function runPartnershipFlow(
   channel: TextChannel,
   member: GuildMember,
   guild: Guild,
 ): Promise<void> {
-  // ── User cooldown check ───────────────────────────────────────────────────────
-  const userExpiry = userCooldowns.get(member.id);
-  if (userExpiry && Date.now() < userExpiry) {
-    const mins = Math.ceil((userExpiry - Date.now()) / 60_000);
-    await channel.send(
-      `${member} You applied recently — please wait **${mins} more minute(s)** before opening a new ticket.`,
-    );
-    await closeIn(channel, 'User cooldown');
-    return;
+  activeChannels.add(channel.id);
+
+  try {
+    await _run(channel, member, guild);
+  } finally {
+    activeChannels.delete(channel.id);
+  }
+}
+
+async function _run(
+  channel: TextChannel,
+  member: GuildMember,
+  guild: Guild,
+): Promise<void> {
+  const bypass = adminBypass.has(member.id);
+
+  // User cooldown
+  if (!bypass) {
+    const exp = userCooldowns.get(member.id);
+    if (exp && Date.now() < exp) {
+      const mins = Math.ceil((exp - Date.now()) / 60_000);
+      await channel.send(`${member} wait ${mins} more minute(s) before applying again.`);
+      return;
+    }
   }
 
-  // ── Welcome ──────────────────────────────────────────────────────────────────
+  // Welcome
   const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId('close_ticket')
-      .setLabel('Close Ticket')
-      .setStyle(ButtonStyle.Danger)
-      .setEmoji('🔒'),
+      .setLabel('Close')
+      .setStyle(ButtonStyle.Danger),
   );
   await channel.send({
     content: `${member}`,
@@ -77,88 +87,59 @@ export async function runPartnershipFlow(
     components: [closeRow],
   });
 
-  // ── Step 1: Collect ad ───────────────────────────────────────────────────────
-  await channel.send(
-    '**Step 1 —** Send your partnership ad.\n' +
-    "It must include your server's Discord invite link (`discord.gg/...`). **Text only — no images.**",
-  );
+  // Step 1
+  await channel.send('Step 1 — send your ad. must include a discord.gg invite. text only.');
 
   let ad = '';
   let inviteCode = '';
   let partnerGuildId: string | null = null;
-  let partnerGuildName = 'Unknown Server';
+  let partnerGuildName = 'Unknown';
   let memberCount = 0;
 
   while (true) {
     let msg: Message;
-    try {
-      msg = await next(channel, member.id);
-    } catch {
-      await channel.send('⏰ Session timed out. Please open a new ticket to apply.');
-      return;
-    }
+    try { msg = await next(channel, member.id); }
+    catch { await channel.send('Timed out. Open a new ticket.'); return; }
 
     const text = msg.content.trim();
 
     if (msg.attachments.some((a) => a.contentType?.startsWith('image/'))) {
-      await channel.send('Send your ad as **text only** — no images at this step.');
-      continue;
+      await channel.send('Text only, no images.'); continue;
     }
-    if (!text) {
-      await channel.send('Please send your ad as text.');
-      continue;
-    }
+    if (!text) { await channel.send('Send text.'); continue; }
     if (text.length > 2000) {
-      await channel.send(
-        `Your ad is ${text.length} characters — must be under 2000. Shorten it and resend.`,
-      );
-      continue;
+      await channel.send(`Too long (${text.length}/2000). Shorten and resend.`); continue;
     }
 
     const code = extractInviteCode(text);
     if (!code) {
-      await channel.send(
-        'Your ad must include a Discord invite link (e.g. `discord.gg/yourserver`). Please resend with the invite included.',
-      );
-      continue;
+      await channel.send('No invite link found. Include discord.gg/... and resend.'); continue;
     }
 
-    // AI ad validation
-    await channel.send('Checking your ad...');
+    await channel.send('Checking ad...');
     try {
       const ok = await validateAd(text);
       if (!ok) {
-        await channel.send(
-          'Declined. Your ad was flagged as inappropriate. Open a new ticket if you believe this is a mistake.',
-        );
-        await closeIn(channel, 'Ad flagged');
+        await channel.send('Ad declined. Open a new ticket if you think this is wrong.');
         return;
       }
-    } catch { /* allow on AI error */ }
+    } catch { /* allow on error */ }
 
-    // Verify invite
-    await channel.send('Verifying your invite link...');
+    await channel.send('Verifying invite...');
     try {
       const invite = await guild.client.fetchInvite(code);
       partnerGuildId   = invite.guild?.id   ?? null;
-      partnerGuildName = invite.guild?.name ?? 'Unknown Server';
+      partnerGuildName = invite.guild?.name ?? 'Unknown';
       memberCount      = invite.memberCount ?? 0;
     } catch {
-      await channel.send(
-        'Could not verify that invite — make sure it is valid and not expired, then resend your ad.',
-      );
-      continue;
+      await channel.send('Could not verify invite. Make sure it is valid and resend.'); continue;
     }
 
-    // Server cooldown check (1 hour)
-    if (partnerGuildId) {
-      const expires = serverCooldowns.get(partnerGuildId);
-      if (expires && Date.now() < expires) {
-        const h = Math.ceil((expires - Date.now()) / 3_600_000);
-        await channel.send(
-          `Declined. This server is on a partnership cooldown — try again in **${h} hour(s)**.`,
-        );
-        await closeIn(channel, 'Server cooldown');
+    if (!bypass && partnerGuildId) {
+      const exp = serverCooldowns.get(partnerGuildId);
+      if (exp && Date.now() < exp) {
+        const h = Math.ceil((exp - Date.now()) / 3_600_000);
+        await channel.send(`This server is on cooldown. Try again in ${h}h.`);
         return;
       }
     }
@@ -168,104 +149,68 @@ export async function runPartnershipFlow(
     break;
   }
 
-  // ── Step 2: Post our ad, ask for proof ───────────────────────────────────────
+  // Step 2
   await channel.send(
-    `✅ **${partnerGuildName}** verified (${memberCount} members online).\n\n` +
-    `**Step 2 —** Post the ad below in **${partnerGuildName}**, then send **one screenshot** ` +
-    `here showing it posted there.`,
+    `${partnerGuildName} verified (${memberCount} online).\n\nStep 2 — post the ad below in ${partnerGuildName}, then send one screenshot here.`,
   );
   await channel.send(MRP_AD);
 
-  // ── Collect proof screenshot ──────────────────────────────────────────────────
   while (true) {
     let msg: Message;
-    try {
-      msg = await next(channel, member.id);
-    } catch {
-      await channel.send('⏰ Session timed out. Please open a new ticket to apply.');
-      return;
-    }
+    try { msg = await next(channel, member.id); }
+    catch { await channel.send('Timed out. Open a new ticket.'); return; }
 
     const images = [...msg.attachments.values()].filter((a) => {
       const ct = a.contentType ?? '';
       return ct.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(a.name ?? '');
     });
 
-    if (images.length === 0) {
-      await channel.send('Send a **screenshot image** — text is not accepted at this step.');
-      continue;
-    }
-    if (images.length > 1) {
-      await channel.send('Send **one screenshot only** — resend with a single image.');
-      continue;
-    }
+    if (images.length === 0) { await channel.send('Send a screenshot.'); continue; }
+    if (images.length > 1)  { await channel.send('One screenshot only.'); continue; }
 
     const proofUrl = images[0].url;
 
-    // Duplicate screenshot check
     let hash = '';
-    try { hash = await downloadImageHash(proofUrl); } catch { /* skip on error */ }
+    try { hash = await downloadImageHash(proofUrl); } catch { /* skip */ }
     if (hash && usedHashes.has(hash)) {
-      await channel.send('Declined. This screenshot has already been used in a previous application.');
-      await closeIn(channel, 'Duplicate proof');
+      await channel.send('This screenshot was already used.');
       return;
     }
 
-    // AI image scan
-    await channel.send('Scanning screenshot...');
+    await channel.send('Scanning...');
     try {
       const scan = await scanProofImage(proofUrl, partnerGuildName);
       if (!scan._failed) {
         if (!scan.hasOurAd) {
-          await channel.send(
-            'Declined. Our ad was not found in the screenshot. Make sure the MRP ad is clearly visible, then try again.',
-          );
-          continue;
+          await channel.send('Our ad not found in screenshot. Make sure it is visible and resend.'); continue;
         }
         if (!scan.serverNameMatch) {
-          await channel.send(
-            `Declined. The server name in the screenshot does not match **${partnerGuildName}**. ` +
-            'Make sure you are screenshotting the correct server.',
-          );
-          continue;
+          await channel.send(`Server name does not match ${partnerGuildName}. Resend the correct screenshot.`); continue;
         }
       }
-      // AI error → allow through, staff will review
     } catch { /* allow on error */ }
 
-    // All good — record cooldowns and hash
-    userCooldowns.set(member.id, Date.now() + USER_COOLDOWN_MS);
-    if (partnerGuildId) serverCooldowns.set(partnerGuildId, Date.now() + SERVER_COOLDOWN_MS);
+    // Record
+    if (!bypass) {
+      userCooldowns.set(member.id, Date.now() + USER_COOLDOWN_MS);
+      if (partnerGuildId) serverCooldowns.set(partnerGuildId, Date.now() + SERVER_COOLDOWN_MS);
+    }
     if (hash) usedHashes.add(hash);
 
-    await channel.send(
-      '✅ Screenshot accepted! Partnership confirmed. A staff member will follow up shortly.',
-    );
+    await channel.send('Accepted. Staff will confirm shortly.');
 
-    // Post ad + proof to configured channels
     const guildChannels = GUILD_CHANNELS[guild.id];
     if (guildChannels) {
       const sendTo = async (channelId: string, content: string) => {
         try {
           const ch = (await guild.channels.fetch(channelId)) as TextChannel | null;
-          if (!ch?.isTextBased()) return;
-          await ch.send({ content });
-        } catch { /* not accessible */ }
+          if (ch?.isTextBased()) await ch.send({ content });
+        } catch { /* skip */ }
       };
-
       await sendTo(guildChannels.partnerChannelId, ad);
-      await sendTo(
-        guildChannels.partnerChannelId,
-        `📋 Proof from ${member} — ticket: ${channel}\n${proofUrl}`,
-      );
-      if (guildChannels.proofChannelId) {
-        await sendTo(
-          guildChannels.proofChannelId,
-          `📋 Partnership proof from ${member} — ticket: ${channel}\n${proofUrl}`,
-        );
-      }
+      await sendTo(guildChannels.partnerChannelId, `Proof from ${member} — ${channel}\n${proofUrl}`);
+      if (guildChannels.proofChannelId)
+        await sendTo(guildChannels.proofChannelId, `Proof from ${member} — ${channel}\n${proofUrl}`);
     }
-
-    return;
   }
 }

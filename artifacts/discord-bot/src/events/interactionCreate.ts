@@ -6,6 +6,7 @@ import {
 import { ALLOWED_GUILD_IDS, MRP_AD } from '../config.js';
 import { handlePartnershipApplyButton } from '../handlers/buttonHandler.js';
 import { closeTicket } from '../handlers/ticketHandler.js';
+import { adminBypass } from '../handlers/questionFlow.js';
 import {
   buildPartnershipRequirementsEmbed,
   buildPartnershipButton,
@@ -14,7 +15,6 @@ import {
 export const name = Events.InteractionCreate;
 
 export async function execute(interaction: Interaction): Promise<void> {
-  // Guild whitelist — silently ignore interactions from non-whitelisted guilds
   if (interaction.guildId && !ALLOWED_GUILD_IDS.includes(interaction.guildId)) return;
 
   if (interaction.isChatInputCommand()) {
@@ -28,10 +28,9 @@ export async function execute(interaction: Interaction): Promise<void> {
     }
     if (interaction.customId === 'close_ticket') {
       if (!interaction.guild) return;
-      await interaction.reply({ content: '🔒 Closing ticket...', ephemeral: true });
+      await interaction.reply({ content: 'Closing...', ephemeral: true });
       await closeTicket(interaction.channelId, interaction.guild);
     }
-    return;
   }
 }
 
@@ -45,5 +44,20 @@ async function handleSlashCommand(interaction: ChatInputCommandInteraction): Pro
 
   if (interaction.commandName === 'postad') {
     await interaction.reply({ content: MRP_AD });
+  }
+
+  if (interaction.commandName === 'admin') {
+    const sub  = interaction.options.getSubcommand();
+    const user = interaction.options.getUser('user', true);
+
+    if (sub === 'bypass') {
+      adminBypass.add(user.id);
+      await interaction.reply({ content: `${user.username} can now bypass cooldowns.`, ephemeral: true });
+    }
+
+    if (sub === 'remove') {
+      adminBypass.delete(user.id);
+      await interaction.reply({ content: `Bypass removed for ${user.username}.`, ephemeral: true });
+    }
   }
 }

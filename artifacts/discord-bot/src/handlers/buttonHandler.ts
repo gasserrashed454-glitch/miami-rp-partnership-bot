@@ -7,7 +7,10 @@ export async function handlePartnershipApplyButton(
   interaction: ButtonInteraction,
 ): Promise<void> {
   if (!interaction.guildId || !ALLOWED_GUILD_IDS.includes(interaction.guildId)) {
-    await interaction.reply({ content: '❌ This bot is not authorised to operate in this server.', ephemeral: true });
+    await interaction.reply({
+      content: '❌ This bot is not authorised to operate in this server.',
+      ephemeral: true,
+    });
     return;
   }
 
@@ -18,21 +21,30 @@ export async function handlePartnershipApplyButton(
 
   await interaction.deferReply({ ephemeral: true });
 
-  const guild  = interaction.guild;
-  const member = await guild.members.fetch(interaction.user.id);
+  try {
+    const guild  = interaction.guild;
+    const member = await guild.members.fetch(interaction.user.id);
 
-  const { channel, alreadyExists } = await createPartnershipTicket(guild, member);
+    const { channel, alreadyExists } = await createPartnershipTicket(guild, member);
 
-  if (alreadyExists) {
-    await interaction.editReply({ content: `❌ You already have an open partnership ticket: ${channel}` });
-    return;
+    if (alreadyExists) {
+      await interaction.editReply({
+        content: `❌ You already have an open partnership ticket: ${channel}`,
+      });
+      return;
+    }
+
+    await interaction.editReply({
+      content: `✅ Your partnership ticket has been created: ${channel}`,
+    });
+
+    runPartnershipFlow(channel, member, guild).catch((err) => {
+      console.error('[questionFlow] error:', err);
+    });
+  } catch (err) {
+    console.error('[handlePartnershipApplyButton] error:', err);
+    await interaction.editReply({
+      content: '❌ Something went wrong creating your ticket. Please try again or contact staff.',
+    }).catch(() => {});
   }
-
-  await interaction.editReply({ content: `✅ Your partnership ticket has been created: ${channel}` });
-
-  // Start the step-by-step question flow inside the ticket channel
-  // Run without awaiting so the interaction reply returns immediately
-  runPartnershipFlow(channel, member, guild).catch((err) => {
-    console.error('Question flow error:', err);
-  });
 }

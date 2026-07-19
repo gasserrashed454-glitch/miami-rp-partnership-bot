@@ -1,4 +1,4 @@
-import { type ButtonInteraction } from 'discord.js';
+import { GuildMember, type ButtonInteraction } from 'discord.js';
 import { ALLOWED_GUILD_IDS } from '../config.js';
 import { createPartnershipTicket } from './ticketHandler.js';
 import { runPartnershipFlow } from './questionFlow.js';
@@ -19,32 +19,38 @@ export async function handlePartnershipApplyButton(
     return;
   }
 
+  // Acknowledge immediately — we'll delete it so nothing is visible to the user
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const guild  = interaction.guild;
-    const member = await guild.members.fetch(interaction.user.id);
+    const guild = interaction.guild;
+
+    // Use the cached member from the interaction to avoid needing GuildMembers intent
+    const member =
+      interaction.member instanceof GuildMember
+        ? interaction.member
+        : await guild.members.fetch(interaction.user.id);
 
     const { channel, alreadyExists } = await createPartnershipTicket(guild, member);
 
     if (alreadyExists) {
       await interaction.editReply({
-        content: `❌ You already have an open partnership ticket: ${channel}`,
+        content: `You already have an open ticket: ${channel}`,
       });
       return;
     }
 
-    await interaction.editReply({
-      content: `✅ Your partnership ticket has been created: ${channel}`,
-    });
+    // Delete the ephemeral reply — the flow starts visibly inside the ticket channel
+    await interaction.deleteReply().catch(() => {});
 
     runPartnershipFlow(channel, member, guild).catch((err) => {
       console.error('[questionFlow] error:', err);
     });
   } catch (err) {
     console.error('[handlePartnershipApplyButton] error:', err);
+    // Edit reply with the actual error so it's easier to diagnose
     await interaction.editReply({
-      content: '❌ Something went wrong creating your ticket. Please try again or contact staff.',
+      content: `❌ Could not create ticket: ${err instanceof Error ? err.message : String(err)}`,
     }).catch(() => {});
   }
 }

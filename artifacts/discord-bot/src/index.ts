@@ -1,14 +1,17 @@
 import 'dotenv/config';
 import { createServer } from 'http';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
-
-// Render web-service health check — opens a port so the port scan passes
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-createServer((_, res) => { res.writeHead(200); res.end('OK'); }).listen(PORT, () => {
-  console.log(`🌐 Health server listening on port ${PORT}`);
-});
-import { name as readyName, once as readyOnce, execute as readyExecute } from './events/ready.js';
+import { name as readyName, execute as readyExecute } from './events/ready.js';
 import { name as interactionName, execute as interactionExecute } from './events/interactionCreate.js';
+
+// Render web-service health check — must bind to 0.0.0.0 for Render's port scanner
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+createServer((_req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+}).listen(PORT, '0.0.0.0', () => {
+  console.log(`🌐 Health server listening on 0.0.0.0:${PORT}`);
+});
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -16,7 +19,6 @@ if (!token) {
   process.exit(1);
 }
 
-// Minimal intents — no privileged intents required, no admin
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -25,21 +27,10 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-// Register events
 client.once(readyName, (...args) => readyExecute(...(args as [Client<true>])));
 client.on(interactionName, (...args) => interactionExecute(...(args as [import('discord.js').Interaction])));
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
-  client.destroy();
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('Shutting down...');
-  client.destroy();
-  process.exit(0);
-});
+process.on('SIGTERM', () => { client.destroy(); process.exit(0); });
+process.on('SIGINT',  () => { client.destroy(); process.exit(0); });
 
 client.login(token);

@@ -1,7 +1,7 @@
 import { type ButtonInteraction } from 'discord.js';
 import { ALLOWED_GUILD_IDS } from '../config.js';
 import { createPartnershipTicket } from './ticketHandler.js';
-import { runPartnershipQuestions } from './questionFlow.js';
+import { runPartnershipFlow } from './questionFlow.js';
 
 export async function handlePartnershipApplyButton(
   interaction: ButtonInteraction,
@@ -32,7 +32,7 @@ export async function handlePartnershipApplyButton(
 
   // Start the step-by-step question flow inside the ticket channel
   // Run without awaiting so the interaction reply returns immediately
-  runPartnershipQuestions(channel, member, guild).catch((err) => {
+  runPartnershipFlow(channel, member, guild).catch((err) => {
     console.error('Question flow error:', err);
   });
 }

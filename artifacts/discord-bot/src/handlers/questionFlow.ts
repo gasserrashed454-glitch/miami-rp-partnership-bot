@@ -2,52 +2,39 @@ import {
   TextChannel,
   GuildMember,
   Guild,
+  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  type Message,
 } from 'discord.js';
-import { buildProofEmbed, buildAiVerdictEmbed, buildTicketWelcomeEmbed } from '../utils/embeds.js';
-import { analyzePartnershipApplication } from '../utils/mistral.js';
-import { GUILD_CHANNELS } from '../config.js';
+import { buildTicketWelcomeEmbed } from '../utils/embeds.js';
+import { GUILD_CHANNELS, MRP_AD } from '../config.js';
 
-const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per question
+const TIMEOUT_MS = 10 * 60 * 1000; // 10 min inactivity
 
-/** Sends a question and waits for the applicant to reply with text. */
-async function askText(channel: TextChannel, userId: string, question: string): Promise<string> {
-  await channel.send(question);
+function extractInviteCode(text: string): string | null {
+  const m = text.match(/discord(?:\.gg|app\.com\/invite)\/([A-Za-z0-9-]+)/i);
+  return m ? m[1] : null;
+}
+
+/** Waits for a single message from the applicant in the ticket channel. */
+async function next(channel: TextChannel, memberId: string): Promise<Message> {
   const collected = await channel.awaitMessages({
-    filter: (m) => m.author.id === userId && !m.author.bot,
+    filter: (m) => m.author.id === memberId && !m.author.bot,
     max: 1,
     time: TIMEOUT_MS,
     errors: ['time'],
   });
-  return collected.first()!.content.trim();
+  return collected.first()!;
 }
 
-/** Sends a question and waits for the applicant to reply with an image attachment or a URL. */
-async function askProof(channel: TextChannel, userId: string, question: string): Promise<string | undefined> {
-  await channel.send(question);
-  const collected = await channel.awaitMessages({
-    filter: (m) => m.author.id === userId && !m.author.bot,
-    max: 1,
-    time: TIMEOUT_MS,
-    errors: ['time'],
-  });
-  const msg = collected.first()!;
-  // Prefer an image attachment; fall back to a typed URL
-  const attachment = msg.attachments.find((a) => /\.(png|jpg|jpeg|gif|webp)$/i.test(a.name ?? ''));
-  if (attachment) return attachment.url;
-  const content = msg.content.trim();
-  if (content.startsWith('http')) return content;
-  return undefined;
-}
-
-export async function runPartnershipQuestions(
+export async function runPartnershipFlow(
   channel: TextChannel,
   member: GuildMember,
   guild: Guild,
 ): Promise<void> {
-  // Welcome embed + close button
+  // ── Welcome ──────────────────────────────────────────────────────────────────
   const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId('close_ticket')
@@ -61,48 +48,125 @@ export async function runPartnershipQuestions(
     components: [closeRow],
   });
 
-  try {
-    const serverName  = await askText(channel, member.id, '**1️⃣ What is your server name?**');
-    const inviteLink  = await askText(channel, member.id, '**2️⃣ What is your server invite link?**');
-    const memberCount = await askText(channel, member.id, '**3️⃣ How many real members does your server have? (excluding bots)**');
-    const description = await askText(channel, member.id, '**4️⃣ Tell us about your server and community:**');
-    const proofUrl    = await askProof(channel, member.id, '**5️⃣ Send your proof screenshot — attach the image directly here:**');
+  // ── Step 0: collect their ad ─────────────────────────────────────────────────
+  await channel.send(
+    '**Step 1 —** Send your partnership ad.\n' +
+    'It must include your server\'s Discord invite link (`discord.gg/...`). **Text only — no images.**',
+  );
 
-    // Proof embed inside the ticket
-    const proofEmbed = buildProofEmbed({ member, serverName, inviteLink, memberCount, proofUrl });
+  let ad = '';
+  let inviteCode = '';
+  let partnerGuildId: string | null = null;
+  let partnerGuildName = 'Unknown Server';
+  let memberCount = 0;
+
+  while (true) {
+    let msg: Message;
+    try { msg = await next(channel, member.id); }
+    catch { await channel.send('⏰ Session timed out — please open a new ticket to apply.'); return; }
+
+    const text = msg.content.trim();
+
+    if (msg.attachments.some((a) => a.contentType?.startsWith('image/'))) {
+      await channel.send('Send your ad as **text only** — no images at this step.'); continue;
+    }
+    if (!text) {
+      await channel.send('Please send your ad as text.'); continue;
+    }
+    if (text.length > 2000) {
+      await channel.send(`Your ad is ${text.length} characters — must be under 2000. Shorten it and resend.`); continue;
+    }
+
+    const code = extractInviteCode(text);
+    if (!code) {
+      await channel.send(
+        'Your ad must include a Discord invite link (e.g. `discord.gg/yourserver`). ' +
+        'Please resend with the invite included.',
+      ); continue;
+    }
+
+    await channel.send('Verifying your invite link...');
+    try {
+      const invite = await guild.client.fetchInvite(code);
+      partnerGuildId  = invite.guild?.id   ?? null;
+      partnerGuildName = invite.guild?.name ?? 'Unknown Server';
+      memberCount      = invite.memberCount ?? 0;
+    } catch {
+      await channel.send(
+        'Could not verify that invite — make sure it is valid and not expired, then resend your ad.',
+      ); continue;
+    }
+
+    ad = text;
+    inviteCode = code;
+    break;
+  }
+
+  // ── Send MRP's ad, ask for screenshot ────────────────────────────────────────
+  await channel.send(
+    `✅ **${partnerGuildName}** verified (${memberCount} members online).\n\n` +
+    `**Step 2 —** Post the ad below in **${partnerGuildName}**, then send **one screenshot** ` +
+    `here showing it posted in their server.`,
+  );
+  await channel.send(MRP_AD);
+
+  // ── Step 2: collect proof screenshot ─────────────────────────────────────────
+  while (true) {
+    let msg: Message;
+    try { msg = await next(channel, member.id); }
+    catch { await channel.send('⏰ Session timed out — please open a new ticket to apply.'); return; }
+
+    const images = [...msg.attachments.values()].filter((a) => {
+      const ct = a.contentType ?? '';
+      return ct.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(a.name ?? '');
+    });
+
+    if (images.length === 0) {
+      await channel.send('Send a **screenshot image** — text is not accepted at this step.'); continue;
+    }
+    if (images.length > 1) {
+      await channel.send('Send **one screenshot only** — resend with a single image.'); continue;
+    }
+
+    const proofUrl = images[0].url;
+
+    // Build proof embed
+    const proofEmbed = new EmbedBuilder()
+      .setTitle('Partnership Proof')
+      .setDescription(
+        `**User:** ${member.user.tag} (${member.user.id})\n` +
+        `**Server:** ${partnerGuildName} | discord.gg/${inviteCode}\n` +
+        `**Members Online:** ${memberCount}`,
+      )
+      .setImage(proofUrl)
+      .setThumbnail(member.user.displayAvatarURL({ size: 256 }))
+      .setColor(0xffffff);
+
     await channel.send({
-      content: '✅ Application received! A staff member will review it shortly.',
+      content: '✅ Screenshot received! A staff member will review and confirm shortly.',
       embeds: [proofEmbed],
     });
 
-    // Post to configured partner / proof channels for this guild
+    // Post their ad + proof to configured channels
     const guildChannels = GUILD_CHANNELS[guild.id];
     if (guildChannels) {
-      const sendTo = async (channelId: string) => {
+      const sendTo = async (channelId: string, content: string, embed?: EmbedBuilder) => {
         try {
           const ch = await guild.channels.fetch(channelId) as TextChannel | null;
-          if (ch?.isTextBased()) {
-            await ch.send({
-              content: `📋 New partnership application from ${member} — ticket: ${channel}`,
-              embeds: [proofEmbed],
-            });
-          }
-        } catch { /* channel not accessible — skip */ }
+          if (!ch?.isTextBased()) return;
+          await ch.send(embed ? { content, embeds: [embed] } : { content });
+        } catch { /* not accessible — skip */ }
       };
-      await sendTo(guildChannels.partnerChannelId);
-      if (guildChannels.proofChannelId) await sendTo(guildChannels.proofChannelId);
+
+      // Post their ad text to the partner channel, then the proof embed
+      await sendTo(guildChannels.partnerChannelId, ad);
+      await sendTo(guildChannels.partnerChannelId, `📋 Proof from ${member} — ticket: ${channel}`, proofEmbed);
+
+      if (guildChannels.proofChannelId) {
+        await sendTo(guildChannels.proofChannelId, `📋 Partnership proof from ${member} — ticket: ${channel}`, proofEmbed);
+      }
     }
 
-    // AI analysis
-    try {
-      const analysis = await analyzePartnershipApplication({ serverName, inviteLink, memberCount, description, proofUrl });
-      await channel.send({ embeds: [buildAiVerdictEmbed(analysis)] });
-    } catch {
-      await channel.send({ content: '⚠️ AI pre-check unavailable — a staff member will review manually.' });
-    }
-  } catch {
-    await channel.send(
-      `⏰ Application timed out — no response received within 10 minutes. Feel free to start a new application anytime.`,
-    );
+    return;
   }
 }

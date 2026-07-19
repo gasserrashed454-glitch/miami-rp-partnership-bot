@@ -4,6 +4,7 @@ import {
   ChannelType,
   PermissionFlagsBits,
   CategoryChannel,
+  TextChannel,
 } from 'discord.js';
 import { TICKET_CATEGORY_NAME } from '../config.js';
 
@@ -28,31 +29,34 @@ export async function createPartnershipTicket(
   guild: Guild,
   member: GuildMember,
 ) {
-  // Check if user already has an open ticket
-  const existingName = `partnership-${member.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-  const existingChannel = guild.channels.cache.find(
-    (ch) => ch.name === existingName,
-  );
-  if (existingChannel) {
-    return { channel: existingChannel, alreadyExists: true };
+  const safeUsername = member.user.username
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 40);
+  const channelName = `partnership-${safeUsername}`;
+
+  // Check for an existing open ticket
+  const existing = guild.channels.cache.find(
+    (ch) => ch.name === channelName,
+  ) as TextChannel | undefined;
+  if (existing) {
+    return { channel: existing, alreadyExists: true };
   }
 
   const category = await getOrCreateTicketCategory(guild);
-
   const botMember = guild.members.cache.get(guild.client.user!.id);
 
+  // Only requires ManageChannels — no ManageRoles needed for channel-level overwrites
   const channel = await guild.channels.create({
-    name: existingName,
+    name: channelName,
     type: ChannelType.GuildText,
     parent: category,
     permissionOverwrites: [
       {
-        // Deny everyone
         id: guild.roles.everyone.id,
         deny: [PermissionFlagsBits.ViewChannel],
       },
       {
-        // Allow the applicant
         id: member.id,
         allow: [
           PermissionFlagsBits.ViewChannel,
@@ -62,7 +66,6 @@ export async function createPartnershipTicket(
           PermissionFlagsBits.ReadMessageHistory,
         ],
       },
-      // Allow the bot itself
       ...(botMember
         ? [
             {

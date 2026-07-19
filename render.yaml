@@ -1,0 +1,24 @@
+services:
+  - type: worker
+    name: mrp-discord-bot
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/discord-bot run build
+    startCommand: node artifacts/discord-bot/dist/index.js
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false          # You'll paste this in the Render dashboard
+      - key: MISTRAL_API_KEY_1
+        sync: false
+      - key: MISTRAL_API_KEY_2
+        sync: false
+      - key: MISTRAL_API_KEY_3
+        sync: false
+      - key: MISTRAL_API_KEY_4
+        sync: false
+      - key: MISTRAL_API_KEY_5
+        sync: false
+      - key: NODE_ENV
+        value: production

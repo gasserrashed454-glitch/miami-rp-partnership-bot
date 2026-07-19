@@ -8,9 +8,9 @@ import {
   ButtonStyle,
   Events,
 } from 'discord.js';
-import { ALLOWED_GUILD_IDS } from '../config.js';
+import { ALLOWED_GUILD_IDS, MRP_AD } from '../config.js';
 import { handlePartnershipApplyButton } from '../handlers/buttonHandler.js';
-import { createPartnershipTicket } from '../handlers/ticketHandler.js';
+import { createPartnershipTicket, closeTicket } from '../handlers/ticketHandler.js';
 import {
   buildProofEmbed,
   buildAiVerdictEmbed,
@@ -19,7 +19,6 @@ import {
   buildPartnershipButton,
 } from '../utils/embeds.js';
 import { analyzePartnershipApplication } from '../utils/mistral.js';
-import { MRP_AD } from '../config.js';
 
 export const name = Events.InteractionCreate;
 
@@ -29,13 +28,11 @@ export async function execute(interaction: Interaction): Promise<void> {
     return;
   }
 
-  // Slash commands
   if (interaction.isChatInputCommand()) {
     await handleSlashCommand(interaction);
     return;
   }
 
-  // Button interactions
   if (interaction.isButton()) {
     if (interaction.customId === 'partnership_apply') {
       await handlePartnershipApplyButton(interaction);
@@ -46,7 +43,6 @@ export async function execute(interaction: Interaction): Promise<void> {
     return;
   }
 
-  // Modal submissions
   if (interaction.isModalSubmit()) {
     if (interaction.customId === 'partnership_modal') {
       await handlePartnershipModal(interaction);
@@ -58,19 +54,13 @@ export async function execute(interaction: Interaction): Promise<void> {
 async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-  const { commandName } = interaction;
-
-  if (commandName === 'postpartnership') {
+  if (interaction.commandName === 'postpartnership') {
     const embed = buildPartnershipRequirementsEmbed();
     const row = buildPartnershipButton();
-    await interaction.reply({
-      content: '',
-      embeds: [embed],
-      components: [row],
-    });
+    await interaction.reply({ embeds: [embed], components: [row] });
   }
 
-  if (commandName === 'postad') {
+  if (interaction.commandName === 'postad') {
     await interaction.reply({ content: MRP_AD });
   }
 }
@@ -83,15 +73,15 @@ async function handlePartnershipModal(
     return;
   }
 
-  const serverName = interaction.fields.getTextInputValue('server_name');
-  const inviteLink = interaction.fields.getTextInputValue('invite_link');
-  const memberCount = interaction.fields.getTextInputValue('member_count');
-  const description = interaction.fields.getTextInputValue('description');
-  const proofUrl = interaction.fields.getTextInputValue('proof_url') || undefined;
+  const serverName   = interaction.fields.getTextInputValue('server_name');
+  const inviteLink   = interaction.fields.getTextInputValue('invite_link');
+  const memberCount  = interaction.fields.getTextInputValue('member_count');
+  const description  = interaction.fields.getTextInputValue('description');
+  const proofUrl     = interaction.fields.getTextInputValue('proof_url') || undefined;
 
   await interaction.deferReply({ ephemeral: true });
 
-  const guild = interaction.guild;
+  const guild  = interaction.guild;
   const member = await guild.members.fetch(interaction.user.id);
 
   const { channel, alreadyExists } = await createPartnershipTicket(guild, member);
@@ -109,8 +99,7 @@ async function handlePartnershipModal(
 
   const ticketChannel = channel as TextChannel;
 
-  // Welcome message
-  const welcomeEmbed = buildTicketWelcomeEmbed(member);
+  // Welcome message with close button
   const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId('close_ticket')
@@ -121,15 +110,16 @@ async function handlePartnershipModal(
 
   await ticketChannel.send({
     content: `${member}`,
-    embeds: [welcomeEmbed],
+    embeds: [buildTicketWelcomeEmbed(member)],
     components: [closeRow],
   });
 
   // Proof embed
-  const proofEmbed = buildProofEmbed({ member, serverName, inviteLink, memberCount, proofUrl });
-  await ticketChannel.send({ embeds: [proofEmbed] });
+  await ticketChannel.send({
+    embeds: [buildProofEmbed({ member, serverName, inviteLink, memberCount, proofUrl })],
+  });
 
-  // AI analysis (run async so ticket is created fast, then AI result follows)
+  // AI analysis
   try {
     const analysis = await analyzePartnershipApplication({
       serverName,
@@ -138,11 +128,10 @@ async function handlePartnershipModal(
       description,
       proofUrl,
     });
-    const aiEmbed = buildAiVerdictEmbed(analysis);
-    await ticketChannel.send({ embeds: [aiEmbed] });
-  } catch (err) {
+    await ticketChannel.send({ embeds: [buildAiVerdictEmbed(analysis)] });
+  } catch {
     await ticketChannel.send({
-      content: '⚠️ AI pre-check unavailable. Please review this application manually.',
+      content: '⚠️ AI pre-check unavailable — please review this application manually.',
     });
   }
 }
@@ -150,9 +139,7 @@ async function handlePartnershipModal(
 async function handleCloseTicket(
   interaction: import('discord.js').ButtonInteraction,
 ): Promise<void> {
+  if (!interaction.guild) return;
   await interaction.reply({ content: '🔒 Closing ticket...', ephemeral: true });
-  const channel = interaction.channel as TextChannel;
-  if (channel) {
-    await channel.delete('Ticket closed by user/staff');
-  }
+  await closeTicket(interaction.channelId, interaction.guild);
 }
